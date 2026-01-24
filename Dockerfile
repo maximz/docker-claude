@@ -43,6 +43,22 @@ RUN set -eux; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
 
+# Install Google Chrome Stable for Puppeteer
+# This allows running headless Chrome via Puppeteer inside the container.
+# See: https://stackoverflow.com/a/78466930/130164
+RUN curl --location --silent https://dl-ssl.google.com/linux/linux_signing_key.pub \
+        -o /usr/share/keyrings/google-chrome.pub \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.pub] https://dl.google.com/linux/chrome/deb/ stable main" \
+        > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
+
+# Skip bundled Chromium download - we use the system-installed Chrome instead
+# Puppeteer will use PUPPETEER_EXECUTABLE_PATH automatically at launch time
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
+
 # Let the node user own a global npm directory
 RUN mkdir -p /usr/local/share/npm-global && \
     chown -R node:node /usr/local/share/npm-global
