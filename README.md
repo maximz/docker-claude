@@ -2,14 +2,47 @@
 
 Docker image for running Claude Code with development tools, firewall support, and headless Chrome.
 
+## Quick Start
+
 ```bash
 docker run \
   --cap-add=NET_ADMIN \
   --mount type=bind,source="$HOME/.claude",target=/home/node/.claude \
-  --mount type=bind,source="$PWD",target=/workspace/project \
-  --workdir /workspace/project \
-  -it cc claude --dangerously-skip-permissions;
+  --mount type=bind,source="$PWD",target="$PWD" \
+  --workdir "$PWD" \
+  -it cc claude --dangerously-skip-permissions
 ```
+
+## With Dotfiles Integration
+
+If you sync your Claude configuration via dotfiles (settings, skills, hooks, commands, agents, plugins), use overlay mounts:
+
+```bash
+docker run \
+  --cap-add=NET_ADMIN \
+  --mount type=bind,source="$HOME/.claude",target=/home/node/.claude \
+  --mount type=bind,source="$HOME/dotfiles/claude/settings.json",target=/home/node/.claude/settings.json \
+  --mount type=bind,source="$HOME/dotfiles/claude/skills",target=/home/node/.claude/skills \
+  --mount type=bind,source="$HOME/dotfiles/claude/hooks",target=/home/node/.claude/hooks \
+  --mount type=bind,source="$HOME/dotfiles/claude/commands",target=/home/node/.claude/commands \
+  --mount type=bind,source="$HOME/dotfiles/claude/agents",target=/home/node/.claude/agents \
+  --mount type=bind,source="$HOME/dotfiles/claude/plugins/installed_plugins.json",target=/home/node/.claude/plugins/installed_plugins.json \
+  --mount type=bind,source="$PWD",target="$PWD" \
+  --workdir "$PWD" \
+  -it cc claude --dangerously-skip-permissions
+```
+
+The overlay mounts take precedence over the base `~/.claude` mount, so your dotfiles content is used directly in the container.
+
+See [migration_claude_config_dir_to_dotfiles.md](migration_claude_config_dir_to_dotfiles.md) for setup instructions.
+
+## Session Persistence
+
+By mounting `$PWD` at its actual host path (instead of `/workspace/project`), Docker sessions are stored in the same location as native Claude sessions:
+
+- Sessions stored in: `~/.claude/projects/-Users-yourname-code-projectname/`
+- Use `claude --continue` to resume sessions from either Docker or native Claude
+- All containers share session data via the `~/.claude` mount
 
 ## Puppeteer / Headless Chrome
 
