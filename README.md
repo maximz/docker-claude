@@ -2,6 +2,15 @@
 
 Docker image for running Claude Code with development tools, firewall support, and headless Chrome.
 
+```bash
+docker run \
+  --cap-add=NET_ADMIN \
+  --mount type=bind,source="$HOME/.claude",target=/home/node/.claude \
+  --mount type=bind,source="$PWD",target=/workspace/project \
+  --workdir /workspace/project \
+  -it cc claude --dangerously-skip-permissions;
+```
+
 ## Puppeteer / Headless Chrome
 
 This image includes Google Chrome Stable and sets `PUPPETEER_EXECUTABLE_PATH` so Puppeteer uses it automatically. However, you **must** pass `--no-sandbox` in your Puppeteer launch args when running inside Docker:
