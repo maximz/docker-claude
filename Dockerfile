@@ -54,14 +54,6 @@ RUN curl --location --silent https://dl-ssl.google.com/linux/linux_signing_key.p
     && apt-get install -y --no-install-recommends google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PowerShell from Microsoft repository
-RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/microsoft-debian-bookworm-prod bookworm main" \
-        > /etc/apt/sources.list.d/microsoft.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends powershell \
-    && rm -rf /var/lib/apt/lists/*
-
 # Skip bundled Chromium download - we use the system-installed Chrome instead
 # Puppeteer will use PUPPETEER_EXECUTABLE_PATH automatically at launch time
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true

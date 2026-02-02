@@ -23,7 +23,7 @@ docker run \
   --mount type=bind,source="$HOME/.claude",target=/home/node/.claude \
   --mount type=bind,source="$HOME/dotfiles/claude/settings.json",target=/home/node/.claude/settings.json \
   --mount type=bind,source="$HOME/dotfiles/claude/CLAUDE.md",target=/home/node/.claude/CLAUDE.md \
-  --mount type=bind,source="$HOME/dotfiles/claude/statusline.ps1",target=/home/node/.claude/statusline.ps1 \
+  --mount type=bind,source="$HOME/dotfiles/claude/statusline.sh",target=/home/node/.claude/statusline.sh \
   --mount type=bind,source="$HOME/dotfiles/claude/skills",target=/home/node/.claude/skills \
   --mount type=bind,source="$HOME/dotfiles/claude/hooks",target=/home/node/.claude/hooks \
   --mount type=bind,source="$HOME/dotfiles/claude/commands",target=/home/node/.claude/commands \
