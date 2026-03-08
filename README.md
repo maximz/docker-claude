@@ -2,6 +2,14 @@
 
 Docker image for running Claude Code with development tools, firewall support, and headless Chrome.
 
+## Building
+
+```bash
+docker build --platform linux/amd64 -t cc .
+```
+
+The `--platform linux/amd64` flag is required because Google Chrome is only available for amd64. On Apple Silicon Macs, Docker will use Rosetta emulation.
+
 ## Quick Start
 
 ```bash
@@ -45,6 +53,14 @@ By mounting `$PWD` at its actual host path (instead of `/workspace/project`), Do
 - Sessions stored in: `~/.claude/projects/-Users-yourname-code-projectname/`
 - Use `claude --continue` to resume sessions from either Docker or native Claude
 - All containers share session data via the `~/.claude` mount
+
+## Firewall
+
+The image includes a network firewall that restricts outbound traffic to approved domains (GitHub, npm, Anthropic API, etc.). The firewall is initialized when the container starts via `start_firewall.sh`.
+
+**Host access**: The firewall automatically allows access to `host.docker.internal`, enabling containers to reach host-side services (APIs, databases, etc.) on Docker Desktop for Mac/Windows.
+
+**Customizing allowed domains**: Edit `init-firewall.sh` to add domains to the allowlist. The script resolves domain IPs at startup and adds them to an `ipset`.
 
 ## Marketplace Warning
 
