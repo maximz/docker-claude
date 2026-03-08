@@ -116,10 +116,10 @@ USER root
 # Install uv globally in /usr/local/bin (no shell profile hacks)
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
 
-# Install Anthropic firewall script
-RUN curl -fsSL https://raw.githubusercontent.com/anthropics/claude-code/main/.devcontainer/init-firewall.sh \
-    -o /usr/local/bin/init-firewall.sh && \
-    chmod +x /usr/local/bin/init-firewall.sh && \
+# Firewall script (local copy with Docker Desktop gateway support)
+# Upstream source: https://github.com/anthropics/claude-code/blob/main/.devcontainer/init-firewall.sh
+COPY init-firewall.sh /usr/local/bin/init-firewall.sh
+RUN chmod +x /usr/local/bin/init-firewall.sh && \
     echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
     chmod 0440 /etc/sudoers.d/node-firewall
 
