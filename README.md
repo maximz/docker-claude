@@ -46,6 +46,18 @@ By mounting `$PWD` at its actual host path (instead of `/workspace/project`), Do
 - Use `claude --continue` to resume sessions from either Docker or native Claude
 - All containers share session data via the `~/.claude` mount
 
+## Marketplace Warning
+
+When using the firewall (`--cap-add=NET_ADMIN`), you'll see:
+
+```
+Failed to install Anthropic marketplace · Will retry on next startup
+```
+
+This is expected. The firewall restricts outbound traffic to Anthropic's API endpoints only, blocking npm registry access needed to install MCP marketplace servers. Claude Code works normally without them—marketplace servers are optional integrations (PubMed, Asana, etc.).
+
+To avoid this warning, either run without `--cap-add=NET_ADMIN` (disables firewall) or pre-configure any MCP servers you need in `~/.claude/settings.json`.
+
 ## Puppeteer / Headless Chrome
 
 This image includes Google Chrome Stable and sets `PUPPETEER_EXECUTABLE_PATH` so Puppeteer uses it automatically. However, you **must** pass `--no-sandbox` in your Puppeteer launch args when running inside Docker:
