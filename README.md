@@ -12,9 +12,6 @@ Docker images for running Claude Code in containers.
 ```bash
 # Build both images (cc-open first, then cc)
 ./build.sh
-
-# Or build just cc-open
-./build-open.sh
 ```
 
 ## Quick Start
