@@ -91,13 +91,19 @@ RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 # Install agent-browser CLI
 RUN npm install -g agent-browser
 
-# Install Chromium for agent-browser (Chrome for Testing lacks ARM64 support)
+# Install Chromium for agent-browser.
+# Chrome for Testing (agent-browser's bundled browser) lacks ARM64 support,
+# so we install system Chromium and pre-launch it with --no-sandbox for Docker.
+# agent-browser connects via CDP (--cdp flag) rather than launching Chrome itself,
+# because its env-var/config-based arg passing is unreliable in containers.
+# A helper script (start-browser.sh) starts Chromium and is called from entrypoints.
 USER root
 RUN apt-get update && \
     apt-get install -y --no-install-recommends chromium && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-ENV CHROME_PATH=/usr/bin/chromium
+COPY start-browser.sh /usr/local/bin/start-browser.sh
+RUN chmod +x /usr/local/bin/start-browser.sh
 USER node
 
 # Install uv
