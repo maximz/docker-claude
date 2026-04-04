@@ -81,16 +81,24 @@ docker run \
 
 Both images include [agent-browser](https://github.com/vercel-labs/agent-browser) (Vercel's CLI browser tool) and system Chromium.
 
-Chrome for Testing (agent-browser's bundled browser) lacks ARM64 Linux support, so we install system Chromium instead. agent-browser's env var arg passing (`AGENT_BROWSER_ARGS`) is unreliable in containers, so we pre-launch Chromium and connect via CDP:
+There are two workarounds in place, both documented in `Dockerfile.open` and `start-browser.sh`:
+
+**1. System Chromium instead of Chrome for Testing.** `agent-browser install` downloads Chrome for Testing, but it has no ARM64 Linux builds. We install Debian's `chromium` package instead.
+
+**2. Pre-launched Chromium via CDP instead of agent-browser's own launch.** Chrome in Docker needs `--no-sandbox` (no Linux namespace privileges). agent-browser documents `AGENT_BROWSER_ARGS` and `--args` for passing Chrome flags, but neither works reliably in containers -- we tested comma-separated env vars, newline-separated env vars, CLI `--args` flag, and `~/.agent-browser/config.json`, all producing "CDP response channel closed" errors. The root cause is likely Chrome crashing before CDP connects due to insufficient `/dev/shm` (Docker defaults to 64MB) combined with the flags not being passed correctly. Pre-launching Chromium ourselves with the right flags and having agent-browser connect to it via `--cdp 9222` works reliably.
+
+Usage:
 
 ```bash
-# Start Chromium (included helper script)
+# Start Chromium (included helper script, idempotent)
 start-browser.sh
 
 # Use agent-browser via CDP connection
 agent-browser --cdp 9222 open https://example.com
 agent-browser --cdp 9222 snapshot -i
 ```
+
+Containers using agent-browser should set `shm_size: '2g'` in compose (or `--shm-size=2g` on `docker run`) and call `start-browser.sh` from their entrypoint.
 
 ## Session Persistence
 
