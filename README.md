@@ -1,14 +1,21 @@
 # docker-claude
 
-Docker image for running Claude Code with development tools, firewall support, and headless Chrome.
+Docker images for running Claude Code in containers.
+
+## Images
+
+- **cc-open**: Full-featured base -- system tools, shell niceties, agent-browser + Chromium, Claude Code CLI, uv. No firewall.
+- **cc**: Derives from cc-open, adds network firewall (egress allowlist).
 
 ## Building
 
 ```bash
-docker build --platform linux/amd64 -t cc .
-```
+# Build both images (cc-open first, then cc)
+./build.sh
 
-The `--platform linux/amd64` flag is required because Google Chrome is only available for amd64. On Apple Silicon Macs, Docker will use Rosetta emulation.
+# Or build just cc-open
+./build-open.sh
+```
 
 ## Quick Start
 
@@ -16,19 +23,32 @@ The `--platform linux/amd64` flag is required because Google Chrome is only avai
 docker run \
   --cap-add=NET_ADMIN \
   --mount type=bind,source="$HOME/.claude",target=/home/node/.claude \
+  --mount type=bind,source="$HOME/.claude.json",target=/home/node/.claude.json \
   --mount type=bind,source="$PWD",target="$PWD" \
   --workdir "$PWD" \
   -it cc claude --dangerously-skip-permissions
 ```
 
+### Volume Mounts
+
+Two mounts are required for CLI auth:
+
+| Mount | Purpose |
+|-------|---------|
+| `~/.claude` -> `/home/node/.claude` | OAuth credentials, session data, config |
+| `~/.claude.json` -> `/home/node/.claude.json` | CLI runtime state (managed by the CLI, not user-edited) |
+
+Both are needed. Without `.claude.json`, interactive mode fails with "please log in" even though `-p` (print) mode works. The CLI manages `.claude.json` itself -- don't put it in dotfiles.
+
 ## With Dotfiles Integration
 
-If you sync your Claude configuration via dotfiles (settings, skills, hooks, commands, agents, plugins), use overlay mounts:
+If you sync your Claude configuration via dotfiles (settings, skills, hooks, commands, agents, plugins), use overlay mounts to resolve broken symlinks inside the container:
 
 ```bash
 docker run \
   --cap-add=NET_ADMIN \
   --mount type=bind,source="$HOME/.claude",target=/home/node/.claude \
+  --mount type=bind,source="$HOME/.claude.json",target=/home/node/.claude.json \
   --mount type=bind,source="$HOME/dotfiles/claude/settings.json",target=/home/node/.claude/settings.json \
   --mount type=bind,source="$HOME/dotfiles/claude/CLAUDE.md",target=/home/node/.claude/CLAUDE.md \
   --mount type=bind,source="$HOME/dotfiles/claude/statusline.sh",target=/home/node/.claude/statusline.sh \
@@ -42,9 +62,38 @@ docker run \
   -it cc claude --dangerously-skip-permissions
 ```
 
-The overlay mounts take precedence over the base `~/.claude` mount, so your dotfiles content is used directly in the container.
-
 See [migration_claude_config_dir_to_dotfiles.md](migration_claude_config_dir_to_dotfiles.md) for setup instructions.
+
+## Using cc-open (no firewall)
+
+For containers that need unrestricted internet access (e.g. web search agents):
+
+```bash
+docker run \
+  --shm-size=2g \
+  --mount type=bind,source="$HOME/.claude",target=/home/node/.claude \
+  --mount type=bind,source="$HOME/.claude.json",target=/home/node/.claude.json \
+  --mount type=bind,source="$PWD",target="$PWD" \
+  --workdir "$PWD" \
+  -it cc-open claude -p "search the web for recent news"
+```
+
+`--shm-size=2g` is needed if using agent-browser/Chromium (Chrome's shared memory requirements exceed Docker's default 64MB).
+
+## Browser: agent-browser + Chromium
+
+Both images include [agent-browser](https://github.com/vercel-labs/agent-browser) (Vercel's CLI browser tool) and system Chromium.
+
+Chrome for Testing (agent-browser's bundled browser) lacks ARM64 Linux support, so we install system Chromium instead. agent-browser's env var arg passing (`AGENT_BROWSER_ARGS`) is unreliable in containers, so we pre-launch Chromium and connect via CDP:
+
+```bash
+# Start Chromium (included helper script)
+start-browser.sh
+
+# Use agent-browser via CDP connection
+agent-browser --cdp 9222 open https://example.com
+agent-browser --cdp 9222 snapshot -i
+```
 
 ## Session Persistence
 
@@ -54,34 +103,20 @@ By mounting `$PWD` at its actual host path (instead of `/workspace/project`), Do
 - Use `claude --continue` to resume sessions from either Docker or native Claude
 - All containers share session data via the `~/.claude` mount
 
-## Firewall
+## Firewall (cc only)
 
-The image includes a network firewall that restricts outbound traffic to approved domains (GitHub, npm, Anthropic API, etc.). The firewall is initialized when the container starts via `start_firewall.sh`.
+The cc image includes a network firewall that restricts outbound traffic to approved domains (GitHub, npm, Anthropic API, etc.). Requires `--cap-add=NET_ADMIN`.
 
-**Host access**: The firewall automatically allows access to `host.docker.internal`, enabling containers to reach host-side services (APIs, databases, etc.) on Docker Desktop for Mac/Windows.
+**Host access**: Automatically allows `host.docker.internal` for host-side services.
 
-**Customizing allowed domains**: Edit `init-firewall.sh` to add domains to the allowlist. The script resolves domain IPs at startup and adds them to an `ipset`.
+**Customizing allowed domains**: Edit `init-firewall.sh` to add domains to the allowlist.
 
-## Marketplace Warning
+### Marketplace Warning
 
-When using the firewall (`--cap-add=NET_ADMIN`), you'll see:
+With the firewall enabled, you'll see:
 
 ```
 Failed to install Anthropic marketplace · Will retry on next startup
 ```
 
-This is expected. The firewall restricts outbound traffic to Anthropic's API endpoints only, blocking npm registry access needed to install MCP marketplace servers. Claude Code works normally without them—marketplace servers are optional integrations (PubMed, Asana, etc.).
-
-To avoid this warning, either run without `--cap-add=NET_ADMIN` (disables firewall) or pre-configure any MCP servers you need in `~/.claude/settings.json`.
-
-## Puppeteer / Headless Chrome
-
-This image includes Google Chrome Stable and sets `PUPPETEER_EXECUTABLE_PATH` so Puppeteer uses it automatically. However, you **must** pass `--no-sandbox` in your Puppeteer launch args when running inside Docker:
-
-```js
-const browser = await puppeteer.launch({
-  args: ['--no-sandbox'],
-});
-```
-
-This is required because Docker containers lack the Linux namespace privileges that Chrome's sandbox needs. See [Puppeteer troubleshooting docs](https://pptr.dev/troubleshooting#setting-up-chrome-linux-sandbox) for details.
+This is expected -- the firewall blocks npm registry access needed for MCP marketplace servers. Claude Code works normally without them.
