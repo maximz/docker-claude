@@ -20,7 +20,6 @@ Docker images for running Claude Code in containers.
 docker run \
   --cap-add=NET_ADMIN \
   --mount type=bind,source="$HOME/.claude",target=/home/node/.claude \
-  --mount type=bind,source="$HOME/.claude.json",target=/home/node/.claude.json \
   --mount type=bind,source="$PWD",target="$PWD" \
   --workdir "$PWD" \
   -it cc claude --dangerously-skip-permissions
@@ -28,14 +27,11 @@ docker run \
 
 ### Volume Mounts
 
-Two mounts are required for CLI auth:
-
 | Mount | Purpose |
 |-------|---------|
 | `~/.claude` -> `/home/node/.claude` | OAuth credentials, session data, config |
-| `~/.claude.json` -> `/home/node/.claude.json` | CLI runtime state (managed by the CLI, not user-edited) |
 
-Both are needed. Without `.claude.json`, interactive mode fails with "please log in" even though `-p` (print) mode works. The CLI manages `.claude.json` itself -- don't put it in dotfiles.
+We intentionally do **not** mount `~/.claude.json`. While it's needed for interactive mode, concurrent access from host and container Claude instances corrupts it. Headless `-p` (print) mode works without it.
 
 ## With Dotfiles Integration
 
@@ -45,7 +41,6 @@ If you sync your Claude configuration via dotfiles (settings, skills, hooks, com
 docker run \
   --cap-add=NET_ADMIN \
   --mount type=bind,source="$HOME/.claude",target=/home/node/.claude \
-  --mount type=bind,source="$HOME/.claude.json",target=/home/node/.claude.json \
   --mount type=bind,source="$HOME/dotfiles/claude/settings.json",target=/home/node/.claude/settings.json \
   --mount type=bind,source="$HOME/dotfiles/claude/CLAUDE.md",target=/home/node/.claude/CLAUDE.md \
   --mount type=bind,source="$HOME/dotfiles/claude/statusline.sh",target=/home/node/.claude/statusline.sh \
@@ -69,7 +64,6 @@ For containers that need unrestricted internet access (e.g. web search agents):
 docker run \
   --shm-size=2g \
   --mount type=bind,source="$HOME/.claude",target=/home/node/.claude \
-  --mount type=bind,source="$HOME/.claude.json",target=/home/node/.claude.json \
   --mount type=bind,source="$PWD",target="$PWD" \
   --workdir "$PWD" \
   -it cc-open claude -p "search the web for recent news"
