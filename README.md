@@ -102,6 +102,24 @@ By mounting `$PWD` at its actual host path (instead of `/workspace/project`), Do
 - Use `claude --continue` to resume sessions from either Docker or native Claude
 - All containers share session data via the `~/.claude` mount
 
+## No MCP (hardening)
+
+Both images ship a `claude` wrapper (`claude-guard.sh`, installed at
+`/usr/local/bin/claude`) that always passes `--strict-mcp-config --mcp-config
+'{"mcpServers":{}}'`, fully disabling MCP for every invocation -- interactive,
+`-p`, or `--dangerously-skip-permissions`.
+
+Why this matters: `--dangerously-skip-permissions` auto-approves tool calls,
+including first-party claude.ai MCP connectors (Linear/Gmail/Google/...). Those
+connectors are reached over `api.anthropic.com` -- the same channel Claude needs
+to function -- so the egress firewall and `settings.json` `deny` rules **cannot**
+block them. Removing MCP at the CLI is the only reliable block.
+
+The auto-updater is disabled (`DISABLE_AUTOUPDATER=1`) so the wrapper can't be
+bypassed by a relocated binary; Claude updates come via rebuilding the image
+(`CLAUDE_CODE_VERSION`). `ENABLE_CLAUDEAI_MCP_SERVERS=false` adds a config-level
+block of the claude.ai connectors as defense-in-depth.
+
 ## Firewall (cc only)
 
 The cc image includes a network firewall that restricts outbound traffic to approved domains (GitHub, npm, Anthropic API, etc.). Requires `--cap-add=NET_ADMIN`.
@@ -118,4 +136,4 @@ With the firewall enabled, you'll see:
 Failed to install Anthropic marketplace · Will retry on next startup
 ```
 
-This is expected -- the firewall blocks npm registry access needed for MCP marketplace servers. Claude Code works normally without them.
+This is expected -- the firewall blocks npm registry access needed for MCP marketplace servers, and MCP is disabled anyway (see [No MCP (hardening)](#no-mcp-hardening)). Claude Code works normally without them.

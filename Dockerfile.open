@@ -111,3 +111,24 @@ USER root
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
 
 USER node
+
+# === No-MCP hardening ===
+# --dangerously-skip-permissions auto-approves tool calls, including first-party
+# claude.ai MCP connectors (Linear/Gmail/Asana/Google/...). Those reach
+# api.anthropic.com -- the same channel Claude needs -- so the egress firewall and
+# settings.json `deny` rules CANNOT block them. The reliable block is removing MCP
+# at the CLI, enforced here so it can't be forgotten.
+#
+# 1) Wrapper shadows the claude binary and always injects an empty MCP config +
+#    --strict-mcp-config. /usr/local/bin precedes the npm-global bin in PATH, so
+#    this wins; the entrypoint exec's `claude`, which resolves to the wrapper.
+# 2) DISABLE_AUTOUPDATER pins claude to the build-time version (update via image
+#    rebuild), so an auto-update can't relocate the binary ahead of the wrapper.
+# 3) ENABLE_CLAUDEAI_MCP_SERVERS=false is a config-level block of claude.ai
+#    connectors (defense-in-depth alongside the CLI wrapper).
+ENV DISABLE_AUTOUPDATER=1
+ENV ENABLE_CLAUDEAI_MCP_SERVERS=false
+USER root
+COPY claude-guard.sh /usr/local/bin/claude
+RUN chmod +x /usr/local/bin/claude
+USER node
