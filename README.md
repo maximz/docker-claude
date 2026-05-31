@@ -122,7 +122,7 @@ block of the claude.ai connectors as defense-in-depth.
 
 ## Firewall (cc only)
 
-The cc image includes a network firewall that restricts outbound traffic to approved domains (GitHub, npm, Anthropic API, etc.). Requires `--cap-add=NET_ADMIN`.
+The cc image includes a network firewall that restricts outbound traffic to approved domains (GitHub, npm, Anthropic API, OpenAI API for Codex, etc.). Requires `--cap-add=NET_ADMIN`.
 
 **Host access**: Automatically allows `host.docker.internal` for host-side services.
 

@@ -21,23 +21,29 @@ ARG FIREWALL_SHA256=711bc435138f14778e753706c4985145bb196045830807131841057d890e
 RUN curl -fsSL "https://raw.githubusercontent.com/anthropics/claude-code/${FIREWALL_COMMIT}/.devcontainer/init-firewall.sh" \
       -o /usr/local/bin/init-firewall.sh && \
     echo "${FIREWALL_SHA256}  /usr/local/bin/init-firewall.sh" | sha256sum -c - && \
-    # Apply local modifications: header comments + host.docker.internal support
+    # Apply local modifications: header comments + host.docker.internal support + Codex API access
     patch /usr/local/bin/init-firewall.sh <<'PATCH'
 --- a/init-firewall.sh
 +++ b/init-firewall.sh
-@@ -1,4 +1,7 @@
+@@ -1,3 +1,6 @@
  #!/bin/bash
 +# Upstream source: https://github.com/anthropics/claude-code/blob/main/.devcontainer/init-firewall.sh
 +# Local modifications: Added Docker Desktop for Mac gateway support (host.docker.internal)
-+
++# and OpenAI API access for Codex CLI.
  set -euo pipefail  # Exit on error, undefined vars, and pipeline failures
  IFS=$'\n\t'       # Stricter word splitting
-
-@@ -88,6 +91,16 @@
-         echo "Adding $ip for $domain"
-         ipset add allowed-domains "$ip"
+@@ -67,6 +70,7 @@
+ for domain in \
+     "registry.npmjs.org" \
+     "api.anthropic.com" \
++    "api.openai.com" \
+     "sentry.io" \
+     "statsig.anthropic.com" \
+     "statsig.com" \
+@@ -90,6 +94,16 @@
      done < <(echo "$ips")
  done
+-
 +
 +# Allow access to Docker host (host.docker.internal)
 +# Required for containers to reach host-side services
@@ -48,9 +54,10 @@ RUN curl -fsSL "https://raw.githubusercontent.com/anthropics/claude-code/${FIREW
 +else
 +    echo "WARNING: Could not resolve host.docker.internal"
 +fi
-
++
  # Get host IP from default route
  HOST_IP=$(ip route | grep default | cut -d" " -f3)
+ if [ -z "$HOST_IP" ]; then
 PATCH
 RUN chmod +x /usr/local/bin/init-firewall.sh && \
     echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
