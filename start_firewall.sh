@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 set -e
 
-# Try to init firewall; if it fails, print a warning instead of killing the shell
+# Try to init firewall; on failure apply deny-all egress (fail closed) instead
+# of leaving the container with open egress.
 if command -v sudo >/dev/null 2>&1; then
-  sudo /usr/local/bin/init-firewall.sh || echo "WARNING: init-firewall.sh failed"
+  if ! sudo /usr/local/bin/init-firewall.sh; then
+    echo "ERROR: init-firewall.sh failed — applying fail-closed egress policy" >&2
+    sudo /usr/local/bin/firewall-fail-closed.sh || true
+  fi
 else
-  /usr/local/bin/init-firewall.sh || echo "WARNING: init-firewall.sh failed"
+  if ! /usr/local/bin/init-firewall.sh; then
+    echo "ERROR: init-firewall.sh failed — applying fail-closed egress policy" >&2
+    /usr/local/bin/firewall-fail-closed.sh || true
+  fi
 fi
 
 exec "$@"

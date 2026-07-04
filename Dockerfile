@@ -70,8 +70,10 @@ RUN curl -fsSL "https://raw.githubusercontent.com/anthropics/claude-code/${FIREW
  HOST_IP=$(ip route | grep default | cut -d" " -f3)
  if [ -z "$HOST_IP" ]; then
 PATCH
+COPY firewall_fail_closed.sh /usr/local/bin/firewall-fail-closed.sh
 RUN chmod +x /usr/local/bin/init-firewall.sh && \
-    echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
+    chmod +x /usr/local/bin/firewall-fail-closed.sh && \
+    echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh, /usr/local/bin/firewall-fail-closed.sh" > /etc/sudoers.d/node-firewall && \
     chmod 0440 /etc/sudoers.d/node-firewall
 
 USER node
