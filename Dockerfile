@@ -22,14 +22,17 @@ RUN curl -fsSL "https://raw.githubusercontent.com/anthropics/claude-code/${FIREW
       -o /usr/local/bin/init-firewall.sh && \
     echo "${FIREWALL_SHA256}  /usr/local/bin/init-firewall.sh" | sha256sum -c - && \
     # Apply local modifications: header comments + host.docker.internal support + Codex API access
+    # + tolerant domain resolution (an unresolvable allowlist domain must not abort the whole
+    # firewall: statsig.anthropic.com stopped resolving in 2026-07 and the resulting exit 1 was
+    # swallowed by start_firewall.sh's WARNING fallback, leaving containers with NO egress rules).
     patch /usr/local/bin/init-firewall.sh <<'PATCH'
 --- a/init-firewall.sh
 +++ b/init-firewall.sh
 @@ -1,3 +1,6 @@
  #!/bin/bash
 +# Upstream source: https://github.com/anthropics/claude-code/blob/main/.devcontainer/init-firewall.sh
-+# Local modifications: Added Docker Desktop for Mac gateway support (host.docker.internal)
-+# and OpenAI API access for Codex CLI.
++# Local modifications: Added Docker Desktop for Mac gateway support (host.docker.internal),
++# OpenAI API access for Codex CLI, and warn-and-skip on unresolvable allowlist domains.
  set -euo pipefail  # Exit on error, undefined vars, and pipeline failures
  IFS=$'\n\t'       # Stricter word splitting
 @@ -67,6 +70,7 @@
@@ -40,6 +43,14 @@ RUN curl -fsSL "https://raw.githubusercontent.com/anthropics/claude-code/${FIREW
      "sentry.io" \
      "statsig.anthropic.com" \
      "statsig.com" \
+@@ -77,5 +81,5 @@
+     ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
+     if [ -z "$ips" ]; then
+-        echo "ERROR: Failed to resolve $domain"
+-        exit 1
++        echo "WARNING: Failed to resolve $domain; leaving it blocked"
++        continue
+     fi
 @@ -90,6 +94,16 @@
      done < <(echo "$ips")
  done
