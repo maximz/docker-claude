@@ -21,29 +21,32 @@ ARG FIREWALL_SHA256=711bc435138f14778e753706c4985145bb196045830807131841057d890e
 RUN curl -fsSL "https://raw.githubusercontent.com/anthropics/claude-code/${FIREWALL_COMMIT}/.devcontainer/init-firewall.sh" \
       -o /usr/local/bin/init-firewall.sh && \
     echo "${FIREWALL_SHA256}  /usr/local/bin/init-firewall.sh" | sha256sum -c - && \
-    # Apply local modifications: header comments + host.docker.internal support + Codex API access
+    # Apply local modifications: header comments + host.docker.internal support + Codex network access
     # + tolerant domain resolution (an unresolvable allowlist domain must not abort the whole
     # firewall: statsig.anthropic.com stopped resolving in 2026-07 and the resulting exit 1 was
     # swallowed by start_firewall.sh's WARNING fallback, leaving containers with NO egress rules).
     patch /usr/local/bin/init-firewall.sh <<'PATCH'
 --- a/init-firewall.sh
 +++ b/init-firewall.sh
-@@ -1,3 +1,6 @@
+@@ -1,3 +1,7 @@
  #!/bin/bash
 +# Upstream source: https://github.com/anthropics/claude-code/blob/main/.devcontainer/init-firewall.sh
 +# Local modifications: Added Docker Desktop for Mac gateway support (host.docker.internal),
-+# OpenAI API access for Codex CLI, and warn-and-skip on unresolvable allowlist domains.
++# OpenAI API, OAuth, and ChatGPT runtime access for Codex CLI, plus warn-and-skip on
++# unresolvable allowlist domains.
  set -euo pipefail  # Exit on error, undefined vars, and pipeline failures
  IFS=$'\n\t'       # Stricter word splitting
-@@ -67,6 +70,7 @@
+@@ -67,6 +71,9 @@
  for domain in \
      "registry.npmjs.org" \
      "api.anthropic.com" \
 +    "api.openai.com" \
++    "auth.openai.com" \
++    "chatgpt.com" \
      "sentry.io" \
      "statsig.anthropic.com" \
      "statsig.com" \
-@@ -77,5 +81,5 @@
+@@ -77,5 +84,5 @@
      ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
      if [ -z "$ips" ]; then
 -        echo "ERROR: Failed to resolve $domain"
@@ -51,7 +54,7 @@ RUN curl -fsSL "https://raw.githubusercontent.com/anthropics/claude-code/${FIREW
 +        echo "WARNING: Failed to resolve $domain; leaving it blocked"
 +        continue
      fi
-@@ -90,6 +94,16 @@
+@@ -90,6 +97,16 @@
      done < <(echo "$ips")
  done
 -
